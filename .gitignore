@@ -171,3 +171,4 @@ cython_debug/
 .pypirc
 
 first-dataset/
+ricoh-dataset/
