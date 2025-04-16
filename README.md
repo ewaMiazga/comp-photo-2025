@@ -1,12 +1,10 @@
 # comp-photo-2025
 Its a part of the master course about computational photography
 
-To download the first dataset for the alignment models try-out, run
+To download the filtered and original photos dataset, run
 
 ```
-gdown 1c9u9GVXlofcQQpNulwtvhGj4Y-BmKfPQ
-unzip first-dataset.zip
-rm first-dataset.zip
+gdown 1tQk0Sl8O8Z0lL-gB_yYk9dxyBCN5ORHT
+unzip dataset_raw.zip
+rm dataset_raw.zip
 ```
-
-Alternatively download from https://drive.google.com/file/d/1c9u9GVXlofcQQpNulwtvhGj4Y-BmKfPQ/view?usp=sharing
