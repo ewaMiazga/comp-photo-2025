@@ -71,7 +71,8 @@ def split_into_folders(dataset_dir, is_raw=True):
     # Distribute files into temp folders
     third = len(sorted_files) // 3
     for idx, filename in enumerate(sorted_files):
-        group = min(idx // third, 2)
+        #group = min(idx // third, 2)
+        group = idx % 3  # Ensure group is 0, 1, or 2
         src = os.path.join(sub_dir_path, filename)
         dst = os.path.join(temp_out_dirs[group], filename)
         shutil.move(src, dst)  # Now move instead of copy
