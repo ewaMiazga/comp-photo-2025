@@ -52,8 +52,15 @@ def align_and_crop_raw_images(path1, path2, align_intensity=True):
     for c in range(4):
         img1 = packed1_scaled[:, :, c]
         img2 = packed2_scaled[:, :, c]
-        projection_matrix = get_image_alignment_transform(img1, img2)
-        projection_matrices.append(projection_matrix)
+        try:
+            projection_matrix = get_image_alignment_transform(img1, img2)
+            projection_matrices.append(projection_matrix)
+        except Exception as e:
+            print(f"Exception when getting transform: {str(e)}")
+        
+    if len(projection_matrices) == 0:
+        print("No matches found for any channel, returning None")
+        return None
 
     projection_matrix = np.stack(projection_matrices, axis=2).mean(axis=2)
 
