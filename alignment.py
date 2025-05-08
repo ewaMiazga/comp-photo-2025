@@ -35,7 +35,8 @@ def apply_transform(img1, img2, H):
     aligned_img = cv2.warpPerspective(img2, H, (img1.shape[1], img1.shape[0]))
     return aligned_img
 
-def align_and_crop_raw_images(path1, path2):
+def align_and_crop_raw_images(path1, path2, align_intensity=True):
+    print(f"Reading {path1} and {path2}")
     raw1 = rawpy.imread(path1)
     raw2 = rawpy.imread(path2)
 
@@ -46,7 +47,7 @@ def align_and_crop_raw_images(path1, path2):
 
     aligned_channels = []
     projection_matrices = []
-    
+
     # Calculate projections for each color channel individually
     for c in range(4):
         img1 = packed1_scaled[:, :, c]
@@ -64,11 +65,19 @@ def align_and_crop_raw_images(path1, path2):
 
     aligned_channels = np.stack(aligned_channels, axis=2, dtype=np.float32)
 
-    # TODO: check projection matrices
-    # TODO: crop original image
-    # TODO: intensity alignment
-
     cropped_aligned, cropped_original = crop_zero_sides(image1=aligned_channels, image2=packed1_unscaled)
+    cropped_original = cropped_original.astype(np.float32)
+
+    if align_intensity:
+      cropped_aligned_mean = cropped_aligned.mean()
+      cropped_original_mean = cropped_original.mean()
+      global_mean = (cropped_aligned_mean + cropped_original_mean) / 2
+
+      cropped_aligned = (cropped_aligned.astype(np.float32) - cropped_aligned_mean + global_mean).astype(np.uint16)
+      cropped_original = (cropped_original.astype(np.float32) - cropped_original_mean + global_mean).astype(np.uint16)
+    else:
+      cropped_aligned = cropped_aligned.astype(np.uint16)
+      cropped_original = cropped_original.astype(np.uint16)
 
     aligned_image_raw, aligned_image_array = unpack_raw(raw2, cropped_aligned)
     original_image_raw, original_image_array = unpack_raw(raw1, cropped_original)
