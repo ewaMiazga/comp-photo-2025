@@ -77,7 +77,7 @@ def align_and_crop_raw_images(path1, path2):
     aligned_image_raw, aligned_image_array = unpack_raw(raw2, cropped_aligned)
     original_image_raw, original_image_array = unpack_raw(raw1, cropped_original)
     return_original = {"raw": original_image_raw, "mosaic_array": original_image_array, "channels": cropped_original}
-    return_aligned = {"raw": aligned_image_raw, "mosaic_array": aligned_image_array, "chan nels": cropped_aligned}
+    return_aligned = {"raw": aligned_image_raw, "mosaic_array": aligned_image_array, "channels": cropped_aligned}
 
     return return_original, return_aligned
 
