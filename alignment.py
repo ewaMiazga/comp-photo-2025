@@ -6,16 +6,20 @@ import rawpy
 import matplotlib.pyplot as plt
 import os
 from raw_utils import *
+
+
 raw_dir = os.path.join('.', 'first-dataset', 'first-dataset-RAW')
 
 
 def get_image_alignment_transform(img1, img2):
     orb = cv2.ORB_create(nfeatures=5000)
+    # sift = cv2.SIFT.create()
 
     # Detect keypoints and descriptors
     kp1, des1 = orb.detectAndCompute(img1, mask=None)
     kp2, des2 = orb.detectAndCompute(img2, mask=None)
-
+    # kp1, des1 = sift.detectAndCompute(img1, mask=None)
+    # kp2, des2 = sift.detectAndCompute(img2, mask=None)
     # Match features using BFMatcher
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     matches = bf.match(des1, des2)
@@ -73,10 +77,76 @@ def align_and_crop_raw_images(path1, path2):
     aligned_image_raw, aligned_image_array = unpack_raw(raw2, cropped_aligned)
     original_image_raw, original_image_array = unpack_raw(raw1, cropped_original)
     return_original = {"raw": original_image_raw, "mosaic_array": original_image_array, "channels": cropped_original}
-    return_aligned = {"raw": aligned_image_raw, "mosaic_array": aligned_image_array, "channels": cropped_aligned}
+    return_aligned = {"raw": aligned_image_raw, "mosaic_array": aligned_image_array, "chan nels": cropped_aligned}
 
     return return_original, return_aligned
 
+def align_and_crop_multiple_raw_images(reference_path, other_paths):
+    import rawpy
+
+    def load_and_pack(path):
+        raw = rawpy.imread(path)
+        packed_scaled = pack_raw(raw, normalize=True)
+        packed_unscaled = pack_raw(raw, normalize=False)
+        return raw, packed_scaled, packed_unscaled
+
+    def crop_common_nonzero_region(*images):
+        assert all(img.shape[:2] == images[0].shape[:2] for img in images), "All images must have same size"
+        print([img.shape for img in images])
+        masks = [np.any(img != 0, axis=-1) if img.ndim == 3 else img != 0 for img in images]
+        common_mask = np.logical_and.reduce(masks)
+        coords = np.argwhere(common_mask)
+        y0, x0 = coords.min(axis=0)
+        y1, x1 = coords.max(axis=0) + 1
+        return tuple(img[y0:y1, x0:x1, ...] for img in images)
+
+    # Load reference
+    ref_raw, ref_scaled, ref_unscaled = load_and_pack(reference_path)
+
+    aligned_images = [ref_unscaled]
+    raw_objects = [ref_raw]
+    unscaled_images = [ref_unscaled]
+
+    # Align each other image to reference
+    for path in other_paths:
+        raw, scaled, unscaled = load_and_pack(path)
+        raw_objects.append(raw)
+
+        projection_matrices = []
+        for c in range(4):
+            proj = get_image_alignment_transform(ref_scaled[:, :, c], scaled[:, :, c])
+            projection_matrices.append(proj)
+        avg_proj = np.stack(projection_matrices, axis=2).mean(axis=2)
+
+        aligned_channels = []
+        for c in range(4):
+            ch = apply_transform(unscaled[:, :, c], ref_unscaled[:, :, c], avg_proj)
+            aligned_channels.append(ch)
+        aligned_img = np.stack(aligned_channels, axis=2, dtype=np.float32)
+
+        aligned_images.append(aligned_img)
+        unscaled_images.append(unscaled)
+
+    aligned_channels_ref = []
+    # for c in range(4):
+    #     aligned_ch = apply_transform(ref_unscaled[:, :, c], ref_unscaled[:, :, c], np.eye(3))
+    #     aligned_channels_ref.append(aligned_ch)
+    # ref_aligned = np.stack(aligned_channels_ref, axis=2, dtype=np.float32)
+    # aligned_images = [ref_aligned] + aligned_images
+    # Crop all aligned images + reference to common valid region
+    cropped_images = crop_common_nonzero_region(*unscaled_images)
+    cropped_aligned = crop_common_nonzero_region(*aligned_images)
+
+    # First image is reference
+    result = []
+    ref_raw_unpacked, ref_array = unpack_raw(raw_objects[0], cropped_images[0])
+    # result.append({"raw": ref_raw_unpacked, "mosaic_array": ref_array, "channels": cropped_images[0]})
+
+    for i in range(len(cropped_aligned)):
+        raw_unpacked, array = unpack_raw(raw_objects[i], cropped_aligned[i])
+        result.append({"raw": raw_unpacked, "mosaic_array": array, "channels": cropped_aligned[i]})
+
+    return result
 def align_images_raw(path1, path2):
     """Aligns img2 to img1 channel by channel"""
     raw1 = rawpy.imread(path1)
@@ -181,6 +251,30 @@ def crop_zero_sides(image1, image2):
 
     return cropped_image1, cropped_image2
 
+def crop_common_nonzero_region(*images):
+    """
+    Crops all images to the region where all have non-zero pixels.
+
+    Args:
+        *images: Numpy arrays of shape (H, W, C) or (H, W)
+
+    Returns:
+        Tuple of cropped images.
+    """
+    assert all(img.shape[:2] == images[0].shape[:2] for img in images), "All images must have same spatial size"
+
+    # Convert all images to mask of non-zero pixels
+    masks = [np.any(img != 0, axis=-1) if img.ndim == 3 else img != 0 for img in images]
+
+    # Find common valid region
+    common_mask = np.logical_and.reduce(masks)
+
+    # Get bounding box of common non-zero region
+    coords = np.argwhere(common_mask)
+    y0, x0 = coords.min(axis=0)
+    y1, x1 = coords.max(axis=0) + 1
+
+    return tuple(img[y0:y1, x0:x1, ...] for img in images)
 
 def homography_error_matrix(homographies):
     """
