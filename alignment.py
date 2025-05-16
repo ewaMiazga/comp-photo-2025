@@ -10,6 +10,7 @@ from raw_utils import *
 
 def get_image_alignment_transform(img1, img2):
     orb = cv2.ORB_create(nfeatures=5000)
+    # sift = cv2.SIFT.create()
 
     # Detect keypoints and descriptors
     kp1, des1 = orb.detectAndCompute(img1, mask=None)
@@ -109,6 +110,30 @@ def crop_zero_sides(image1, image2, shift=64):
 
     return cropped_image1, cropped_image2
 
+def crop_common_nonzero_region(*images):
+    """
+    Crops all images to the region where all have non-zero pixels.
+
+    Args:
+        *images: Numpy arrays of shape (H, W, C) or (H, W)
+
+    Returns:
+        Tuple of cropped images.
+    """
+    assert all(img.shape[:2] == images[0].shape[:2] for img in images), "All images must have same spatial size"
+
+    # Convert all images to mask of non-zero pixels
+    masks = [np.any(img != 0, axis=-1) if img.ndim == 3 else img != 0 for img in images]
+
+    # Find common valid region
+    common_mask = np.logical_and.reduce(masks)
+
+    # Get bounding box of common non-zero region
+    coords = np.argwhere(common_mask)
+    y0, x0 = coords.min(axis=0)
+    y1, x1 = coords.max(axis=0) + 1
+
+    return tuple(img[y0:y1, x0:x1, ...] for img in images)
 
 def homography_error_matrix(homographies):
     """
