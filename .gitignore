@@ -172,3 +172,4 @@ cython_debug/
 
 first-dataset/
 ricoh-dataset/
+dataset_raw/

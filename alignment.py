@@ -8,9 +8,6 @@ import os
 from raw_utils import *
 
 
-raw_dir = os.path.join('.', 'first-dataset', 'first-dataset-RAW')
-
-
 def get_image_alignment_transform(img1, img2):
     orb = cv2.ORB_create(nfeatures=5000)
     # sift = cv2.SIFT.create()
@@ -18,8 +15,7 @@ def get_image_alignment_transform(img1, img2):
     # Detect keypoints and descriptors
     kp1, des1 = orb.detectAndCompute(img1, mask=None)
     kp2, des2 = orb.detectAndCompute(img2, mask=None)
-    # kp1, des1 = sift.detectAndCompute(img1, mask=None)
-    # kp2, des2 = sift.detectAndCompute(img2, mask=None)
+
     # Match features using BFMatcher
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     matches = bf.match(des1, des2)
@@ -40,153 +36,37 @@ def apply_transform(img1, img2, H):
     return aligned_img
 
 def align_and_crop_raw_images(path1, path2):
-    raw1 = rawpy.imread(path1)
-    raw2 = rawpy.imread(path2)
+    print(f"Reading {path1} and {path2}")
+    raw1 = rawpy.imread(path1).raw_image_visible
+    raw2 = rawpy.imread(path2).raw_image_visible
 
-    packed1_scaled = pack_raw(raw1, normalize=True)
-    packed2_scaled = pack_raw(raw2, normalize=True)
-    packed1_unscaled = pack_raw(raw1, normalize=False)
-    packed2_unscaled = pack_raw(raw2, normalize=False)
+    packed1 = pack_raw(raw1, normalize=True).astype(np.float32)
+    packed2 = pack_raw(raw2, normalize=True).astype(np.float32)
 
-    aligned_channels = []
-    projection_matrices = []
-    
-    # Calculate projections for each color channel individually
-    for c in range(4):
-        img1 = packed1_scaled[:, :, c]
-        img2 = packed2_scaled[:, :, c]
-        projection_matrix = get_image_alignment_transform(img1, img2)
-        projection_matrices.append(projection_matrix)
+    # Calculate projection matrix for green channel and apply it
+    try: 
+        projection_matrix = get_image_alignment_transform(
+            (packed1[:, :, 1] * 255).astype(np.uint8),
+            (packed2[:, :, 1] * 255).astype(np.uint8),
+        )
+    except Exception as e:
+        print(f"Exception when getting transform: {str(e)}")
+        return None
 
-    projection_matrix = np.stack(projection_matrices, axis=2).mean(axis=2)
-
-    for c in range(4):
-        img1 = packed1_unscaled[:, :, c]
-        img2 = packed2_unscaled[:, :, c]
-        aligned_ch = apply_transform(img1, img2, projection_matrix)
-        aligned_channels.append(aligned_ch)
-
+    aligned_channels = [
+        apply_transform(packed1[:, :, c], packed2[:, :, c], projection_matrix) for c in range(4)
+    ]
     aligned_channels = np.stack(aligned_channels, axis=2, dtype=np.float32)
 
-    # TODO: check projection matrices
-    # TODO: crop original image
-    # TODO: intensity alignment
+    cropped_aligned, cropped_original = crop_zero_sides(image1=aligned_channels, image2=packed1)
 
-    cropped_aligned, cropped_original = crop_zero_sides(image1=aligned_channels, image2=packed1_unscaled)
+    unpacked_aligned = unpack_raw(cropped_aligned)
+    unpacked_original = unpack_raw(cropped_original)
 
-    aligned_image_raw, aligned_image_array = unpack_raw(raw2, cropped_aligned)
-    original_image_raw, original_image_array = unpack_raw(raw1, cropped_original)
-    return_original = {"raw": original_image_raw, "mosaic_array": original_image_array, "channels": cropped_original}
-    return_aligned = {"raw": aligned_image_raw, "mosaic_array": aligned_image_array, "channels": cropped_aligned}
+    result_aligned = {"raw": unpacked_aligned, "rgb": demosaic_bilinear(unpacked_aligned)}
+    result_original = {"raw": unpacked_original,  "rgb": demosaic_bilinear(unpacked_original)}
 
-    return return_original, return_aligned
-
-def align_and_crop_multiple_raw_images(reference_path, other_paths):
-    import rawpy
-
-    def load_and_pack(path):
-        raw = rawpy.imread(path)
-        packed_scaled = pack_raw(raw, normalize=True)
-        packed_unscaled = pack_raw(raw, normalize=False)
-        return raw, packed_scaled, packed_unscaled
-
-    def crop_common_nonzero_region(*images):
-        assert all(img.shape[:2] == images[0].shape[:2] for img in images), "All images must have same size"
-        print([img.shape for img in images])
-        masks = [np.any(img != 0, axis=-1) if img.ndim == 3 else img != 0 for img in images]
-        common_mask = np.logical_and.reduce(masks)
-        coords = np.argwhere(common_mask)
-        y0, x0 = coords.min(axis=0)
-        y1, x1 = coords.max(axis=0) + 1
-        return tuple(img[y0:y1, x0:x1, ...] for img in images)
-
-    # Load reference
-    ref_raw, ref_scaled, ref_unscaled = load_and_pack(reference_path)
-
-    aligned_images = [ref_unscaled]
-    raw_objects = [ref_raw]
-    unscaled_images = [ref_unscaled]
-
-    # Align each other image to reference
-    for path in other_paths:
-        raw, scaled, unscaled = load_and_pack(path)
-        raw_objects.append(raw)
-
-        projection_matrices = []
-        for c in range(4):
-            proj = get_image_alignment_transform(ref_scaled[:, :, c], scaled[:, :, c])
-            projection_matrices.append(proj)
-        avg_proj = np.stack(projection_matrices, axis=2).mean(axis=2)
-
-        aligned_channels = []
-        for c in range(4):
-            ch = apply_transform(unscaled[:, :, c], ref_unscaled[:, :, c], avg_proj)
-            aligned_channels.append(ch)
-        aligned_img = np.stack(aligned_channels, axis=2, dtype=np.float32)
-
-        aligned_images.append(aligned_img)
-        unscaled_images.append(unscaled)
-
-    aligned_channels_ref = []
-    # for c in range(4):
-    #     aligned_ch = apply_transform(ref_unscaled[:, :, c], ref_unscaled[:, :, c], np.eye(3))
-    #     aligned_channels_ref.append(aligned_ch)
-    # ref_aligned = np.stack(aligned_channels_ref, axis=2, dtype=np.float32)
-    # aligned_images = [ref_aligned] + aligned_images
-    # Crop all aligned images + reference to common valid region
-    cropped_images = crop_common_nonzero_region(*unscaled_images)
-    cropped_aligned = crop_common_nonzero_region(*aligned_images)
-
-    # First image is reference
-    result = []
-    ref_raw_unpacked, ref_array = unpack_raw(raw_objects[0], cropped_images[0])
-    # result.append({"raw": ref_raw_unpacked, "mosaic_array": ref_array, "channels": cropped_images[0]})
-
-    for i in range(len(cropped_aligned)):
-        raw_unpacked, array = unpack_raw(raw_objects[i], cropped_aligned[i])
-        result.append({"raw": raw_unpacked, "mosaic_array": array, "channels": cropped_aligned[i]})
-
-    return result
-def align_images_raw(path1, path2):
-    """Aligns img2 to img1 channel by channel"""
-    raw1 = rawpy.imread(path1)
-    raw2 = rawpy.imread(path2)
-
-    packed1_scaled = pack_raw(raw1, normalize=True)
-    packed2_scaled = pack_raw(raw2, normalize=True)
-    packed1_unscaled = pack_raw(raw1, normalize=False)
-    packed2_unscaled = pack_raw(raw2, normalize=False)
-
-    aligned_channels = []
-    projection_matrices = []
-    
-    # Calculate projections for each color channel individually
-    for c in range(4):
-        img1 = packed1_scaled[:, :, c]
-        img2 = packed2_scaled[:, :, c]
-        projection_matrix = get_image_alignment_transform(img1, img2)
-        projection_matrices.append(projection_matrix)
-
-    projection_matrix = np.stack(projection_matrices, axis=2).mean(axis=2)
-
-    for c in range(4):
-        img1 = packed1_unscaled[:, :, c]
-        img2 = packed2_unscaled[:, :, c]
-        aligned_ch = apply_transform(img1, img2, projection_matrix)
-        aligned_channels.append(aligned_ch)
-
-    aligned_channels = np.stack(aligned_channels, axis=2, dtype=np.float32)
-
-    # TODO: check projection matrices
-    # TODO: crop original image
-    # TODO: intensity alignment
-
-    raw = rawpy.imread(path1)
-    aligned_image_raw, aligned_image_array = unpack_raw(raw, aligned_channels)
-
-
-    return aligned_image_raw, aligned_image_array, aligned_channels
-
+    return result_original, result_aligned
 
 
 def align_images_single_channel(img1, img2):
@@ -216,34 +96,13 @@ def align_images_single_channel(img1, img2):
     else:
         raise ValueError("Not enough matches found.")
 
-def grayscale_from_raw(raw):
-
-    rgb = raw.postprocess()  # Process RAW file to RGB
-    # image = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-    gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
-    gray_downscaled = cv2.resize(gray, (gray.shape[1] // 2, gray.shape[0] // 2), interpolation=cv2.INTER_AREA)
-    return  gray_downscaled
-
-def crop_zero_sides(image1, image2):
+def crop_zero_sides(image1, image2, shift=64):
     """
-    Crops the sides of the images where pixel values are zero in image1.
-    The same crop is applied to image2 to maintain alignment.
-
-    Args:
-        image1 (numpy.ndarray): The first image (used to determine the crop).
-        image2 (numpy.ndarray): The second image (to apply the same crop).
-
-    Returns:
-        cropped_image1 (numpy.ndarray): Cropped version of image1.
-        cropped_image2 (numpy.ndarray): Cropped version of image2.
+    Crops the sides of the images
     """
-    # Find non-zero rows and columns in image1
-    non_zero_rows = np.any(image1 != 0, axis=(1, 2))
-    non_zero_cols = np.any(image1 != 0, axis=(0, 2))
 
-    # Determine the cropping bounds
-    row_start, row_end = np.where(non_zero_rows)[0][[0, -1]]
-    col_start, col_end = np.where(non_zero_cols)[0][[0, -1]]
+    row_start, row_end = shift, -shift
+    col_start, col_end = shift, -shift
 
     # Crop both images using the same bounds
     cropped_image1 = image1[row_start:row_end + 1, col_start:col_end + 1, :]
