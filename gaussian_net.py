@@ -3,6 +3,7 @@ from torch import nn
 import numpy as np
 import torch.nn.functional as F
 import random
+from torch.utils.data import Dataset, DataLoader
 
 
 
@@ -72,73 +73,58 @@ def adaptive_gaussian_conv2d(img, kernels, k_size):
 
 
 class GaussianNet(nn.Module):
-    def __init__(self, H, W, C, k_size):
+    def __init__(self, k_size):
         super(GaussianNet, self).__init__()
         self.k_size = k_size
 
-
         self.encoder_img = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1),   # 450x450
+            nn.Conv2d(4, 32, kernel_size=4, stride=2, padding=1),   # -> (32, 651, 1009)
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # 225x225
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # -> (64, 326, 505)
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=4, stride=2, padding=1),  # 113x113
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # -> (128, 163, 253)
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # 57x57
+            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# -> (128, 82, 127)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 29x29
+            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# -> (128, 41, 64)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 15x15
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),# -> (128, 41, 64)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 8x8
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),# 8x8
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # 16x16
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # 32x32
-            nn.ReLU()
+            nn.AdaptiveAvgPool2d((32, 32))                          # -> (128, 32, 32)
         )
 
         self.encoder_sigma = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1),   # 450x450
+            nn.Conv2d(4, 32, kernel_size=4, stride=2, padding=1),   # -> (32, 651, 1009)
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # 225x225
+            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),  # -> (64, 326, 505)
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=4, stride=2, padding=1),  # 113x113
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # -> (128, 163, 253)
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # 57x57
+            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# -> (128, 82, 127)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 29x29
+            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# -> (128, 41, 64)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 15x15
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),# -> (128, 41, 64)
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1),# 8x8
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),# 8x8
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # 16x16
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # 32x32
-            nn.ReLU()
+            nn.AdaptiveAvgPool2d((32, 32))                          # -> (128, 32, 32)
         )
 
-        # Decoder: 32x32x128 -> 900x900x3
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # 64x64
+            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # -> (128, 64, 64)
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # 128x128
+            nn.ConvTranspose2d(128, 128, kernel_size=4, stride=2, padding=1), # -> (128, 128, 128)
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 64, kernel_size=4, stride=2, padding=1),   # 256x256
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # -> (64, 256, 256)
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),   # 512x512
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),   # -> (32, 512, 512)
             nn.ReLU(),
-            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),   # 1024x1024
+            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),   # -> (16, 1024, 1024)
             nn.ReLU(),
-            nn.Conv2d(16, 3, kernel_size=3, padding=1),                        # Still 1024x1024
-            nn.Tanh(),  # Output in range [-1, 1]
-            nn.AdaptiveAvgPool2d((900, 900))  # Resize to exact 900x900
+            nn.ConvTranspose2d(16, 4, kernel_size=4, stride=2, padding=1),    # -> (4, 2048, 2048)
+            nn.ReLU(),
         )
+        self.final_resize = nn.Upsample(size=(1301, 2018), mode='bilinear', align_corners=False)
+
 
     def forward(self, img):
         sigma = self.encoder_sigma(img) + 1e-10
@@ -147,7 +133,7 @@ class GaussianNet(nn.Module):
         kernels = gaussian_kernel(sigma, self.k_size).to(img.device)
         diffused_img = adaptive_gaussian_conv2d(encoded_img, kernels, self.k_size)
         
-        return self.decoder(diffused_img)
+        return self.final_resize(self.decoder(diffused_img))
 
 
 def set_seed(seed=42):
@@ -160,3 +146,16 @@ def set_seed(seed=42):
     # Ensures deterministic behavior (slower but reproducible)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+class ImagePairDataset(Dataset):
+    def __init__(self, orig_imgs, filter_imgs):
+        assert orig_imgs.shape == filter_imgs.shape
+        self.orig_imgs = orig_imgs
+        self.filter_imgs = filter_imgs
+
+    def __len__(self):
+        return self.orig_imgs.shape[0]
+
+    def __getitem__(self, idx):
+        return self.orig_imgs[idx], self.filter_imgs[idx]
