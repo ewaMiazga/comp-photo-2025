@@ -63,8 +63,8 @@ def align_and_crop_raw_images(path1, path2):
     unpacked_aligned = unpack_raw(cropped_aligned)
     unpacked_original = unpack_raw(cropped_original)
 
-    result_aligned = {"raw": unpacked_aligned, "rgb": demosaic_bilinear(unpacked_aligned)}
-    result_original = {"raw": unpacked_original,  "rgb": demosaic_bilinear(unpacked_original)}
+    result_aligned = {"raw": unpacked_aligned, "mosaic": cropped_aligned, "rgb": demosaic_bilinear(unpacked_aligned)}
+    result_original = {"raw": unpacked_original, "mosaic": cropped_original,  "rgb": demosaic_bilinear(unpacked_original)}
 
     return result_original, result_aligned
 
