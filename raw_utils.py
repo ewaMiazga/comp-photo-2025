@@ -24,7 +24,7 @@ def unpack_raw(packed_img, black_level=512, white_level=16383, denormalize=False
     if denormalize:
         packed_img = packed_img / 255.0 * (white_level - black_level) + black_level
 
-    out = np.zeros((H, W), dtype=np.uint16 if denormalize else np.float32)
+    out = np.zeros((H, W), np.float32)
     out[0:H:2, 0:W:2] = packed_img[:, :, 0]
     out[0:H:2, 1:W:2] = packed_img[:, :, 1]
     out[1:H:2, 1:W:2] = packed_img[:, :, 2]
