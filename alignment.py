@@ -70,8 +70,7 @@ def apply_transform(img1, img2, H):
     aligned_img = cv2.warpPerspective(img2, H, (img1.shape[1], img1.shape[0]))
     return aligned_img
 
-def align_and_crop_raw_images(path1, path2):
-    print(f"Reading {path1} and {path2}")
+def _align_and_crop_raw_images(path1, path2):
     raw1 = rawpy.imread(path1).raw_image_visible
     raw2 = rawpy.imread(path2).raw_image_visible
 
@@ -79,7 +78,7 @@ def align_and_crop_raw_images(path1, path2):
     packed2 = pack_raw(raw2, normalize=True).astype(np.float32)
 
     # Calculate projection matrix for green channel and apply it
-    try: 
+    try:
         projection_matrix = get_image_alignment_transform(
             (packed1[:, :, 1] * 255).astype(np.uint8),
             (packed2[:, :, 1] * 255).astype(np.uint8),
@@ -103,6 +102,23 @@ def align_and_crop_raw_images(path1, path2):
 
     return result_original, result_aligned
 
+def align_and_crop_raw_images(path1, path2, path3=None):
+    # Run first alignment
+    result_pair_1 = _align_and_crop_raw_images(path1, path2)
+
+    if path3 is None:
+        return result_pair_1
+
+    # Run second alignment
+    result_pair_2 = _align_and_crop_raw_images(path1, path3)
+
+    # Return None if any of the results are None
+    if result_pair_1 is None or result_pair_2 is None:
+        return None
+    # Unpack and return the results
+    result1, result2 = result_pair_1
+    result3 = result_pair_2[1]
+    return result1, result2, result3
 
 def align_images_single_channel(img1, img2):
     """Aligns img2 to img1 using ORB feature matching and RANSAC."""
@@ -130,6 +146,14 @@ def align_images_single_channel(img1, img2):
         return aligned_img, H
     else:
         raise ValueError("Not enough matches found.")
+
+def grayscale_from_raw(raw):
+
+    rgb = raw.postprocess()  # Process RAW file to RGB
+    # image = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+    gray_downscaled = cv2.resize(gray, (gray.shape[1] // 2, gray.shape[0] // 2), interpolation=cv2.INTER_AREA)
+    return  gray_downscaled
 
 def crop_zero_sides(image1, image2, shift=64):
     """
