@@ -77,35 +77,36 @@ class GaussianNet(nn.Module):
         super(GaussianNet, self).__init__()
         self.k_size = k_size
 
-        self.enc1 = nn.Conv2d(4, 32, kernel_size=4, stride=2, padding=1)    # -> (32, 256, 256)
-        self.enc2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)   # -> (64, 128, 128)
-        self.enc3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)  # -> (128, 64, 64)
-        self.enc4 = nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1) # -> (256, 32, 32)
+        self.enc1 = nn.Conv2d(4, 16, kernel_size=4, stride=2, padding=1)   # -> (16, 256, 256)
+        self.enc2 = nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1)  # -> (32, 128, 128)
+        self.enc3 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)  # -> (64, 64, 64)
+        self.enc4 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1) # -> (128, 32, 32)
 
         self.encoder_sigma = nn.Sequential(
-            nn.Conv2d(4, 32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(4, 16, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-            nn.Sigmoid()
+            nn.ReLU()
         )
 
-        self.dec1 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)  # 32 → 64
-        self.dec2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)   # 64 → 128
-        self.dec3 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)    # 128 → 256
-        self.dec4 = nn.ConvTranspose2d(32, 4, kernel_size=4, stride=2, padding=1)     # 256 → 512
+        self.dec1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)  # 32 → 64
+        self.dec2 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)   # 64 → 128
+        self.dec3 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1)   # 128 → 256
+        self.dec4 = nn.ConvTranspose2d(16, 4, kernel_size=4, stride=2, padding=1)    # 256 → 512
         
 
     def forward(self, img):
         e1 = F.relu(self.enc1(img))
         e2 = F.relu(self.enc2(e1))
         e3 = F.relu(self.enc3(e2))
-        x_encoded = F.relu(self.enc4(e3))
+        x_encoded = F.relu(self.enc4(e3)) + 1e-3
 
-        sigma = self.encoder_sigma(img)
+        sigma = self.encoder_sigma(img) + 1e-3
+
         kernels = gaussian_kernel(sigma, self.k_size)
         diffused = adaptive_gaussian_conv2d(x_encoded, kernels, self.k_size)
 
@@ -113,19 +114,16 @@ class GaussianNet(nn.Module):
         x = F.relu(self.dec2(x + e3))
         x = F.relu(self.dec3(x + e2))
         x = F.relu(self.dec4(x + e1))
-
-        out = x + img
+        out = x
         return out
 
 
 def set_seed(seed=42):
-    torch.manual_seed(seed)              # Set seed for CPU
-    torch.cuda.manual_seed(seed)         # Set seed for current GPU
-    torch.cuda.manual_seed_all(seed)     # Set seed for all GPUs (if using multi-GPU)
-    np.random.seed(seed)                 # Set seed for NumPy
-    random.seed(seed)                    # Set seed for Python’s random module
-
-    # Ensures deterministic behavior (slower but reproducible)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
