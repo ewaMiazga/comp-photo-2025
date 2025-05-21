@@ -113,8 +113,8 @@ class GaussianNet(nn.Module):
         x = F.relu(self.dec1(diffused))
         x = F.relu(self.dec2(x + e3))
         x = F.relu(self.dec3(x + e2))
-        x = F.relu(self.dec4(x + e1))
-        out = x + img
+        x = self.dec4(x + e1)
+        out = F.sigmoid(x + img)
         return out
 
 
