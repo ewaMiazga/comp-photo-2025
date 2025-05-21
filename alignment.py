@@ -43,28 +43,6 @@ def get_image_alignment_transform(img1, img2, method="orb", nfeatures=5000, rans
         return H, inlier_ratio
     else:
         return H
-# def get_image_alignment_transform(img1, img2):
-#     orb = cv2.ORB_create(nfeatures=5000)
-#     # sift = cv2.SIFT.create()
-#
-#     # Detect keypoints and descriptors
-#     kp1, des1 = orb.detectAndCompute(img1, mask=None)
-#     kp2, des2 = orb.detectAndCompute(img2, mask=None)
-#
-#     # Match features using BFMatcher
-#     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-#     matches = bf.match(des1, des2)
-#     matches = sorted(matches, key=lambda x: x.distance)
-#
-#     # Use RANSAC to find homography
-#     if len(matches) > 10:
-#         src_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-#         dst_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-#
-#         H, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, ransacReprojThreshold=5.0)
-#         return H
-#     else:
-#         raise ValueError("Not enough matches found.")
 
 def apply_transform(img1, img2, H):
     aligned_img = cv2.warpPerspective(img2, H, (img1.shape[1], img1.shape[0]))
