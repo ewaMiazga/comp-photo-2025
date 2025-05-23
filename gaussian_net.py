@@ -93,10 +93,14 @@ class GaussianNet(nn.Module):
             nn.ReLU()
         )
 
-        self.dec1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)  # 32 → 64
-        self.dec2 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)   # 64 → 128
-        self.dec3 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1)   # 128 → 256
-        self.dec4 = nn.ConvTranspose2d(16, 4, kernel_size=4, stride=2, padding=1)    # 256 → 512
+        self.dec1 = nn.Sequential(nn.Upsample(scale_factor=2), nn.Conv2d(128, 64, 3, 1, 1))
+        # nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)  # 32 → 64
+        self.dec2 = nn.Sequential(nn.Upsample(scale_factor=2), nn.Conv2d(64, 32, 3, 1, 1))
+        # nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1)   # 64 → 128
+        self.dec3 = nn.Sequential(nn.Upsample(scale_factor=2), nn.Conv2d(32, 16, 3, 1, 1))
+        # nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1)   # 128 → 256
+        self.dec4 = nn.Sequential(nn.Upsample(scale_factor=2), nn.Conv2d(16, 4, 3, 1, 1))
+        # nn.ConvTranspose2d(16, 4, kernel_size=4, stride=2, padding=1)    # 256 → 512
         
 
     def forward(self, img):
@@ -113,8 +117,8 @@ class GaussianNet(nn.Module):
         x = F.relu(self.dec1(diffused))
         x = F.relu(self.dec2(x + e3))
         x = F.relu(self.dec3(x + e2))
-        x = F.relu(self.dec4(x + e1))
-        out = x + img
+        x = self.dec4(x + e1)
+        out = (x + img).clamp(0, 1)
         return out
 
 
