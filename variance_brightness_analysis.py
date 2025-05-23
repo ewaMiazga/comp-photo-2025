@@ -23,8 +23,10 @@ def compute_local_variance(image, kernel_size=5):
     G1_variance = compute_local_variance_single_channel(image[:, :, 1], kernel_size)
     B_variance = compute_local_variance_single_channel(image[:, :, 2], kernel_size)
     G2_variance = compute_local_variance_single_channel(image[:, :, 3], kernel_size)
-
-    return np.stack((R_variance, G1_variance, B_variance, G2_variance), axis=2)
+    stack = np.stack((R_variance, G1_variance, B_variance, G2_variance), axis=2)
+    # Clip the variance to be non-negative
+    stack = np.clip(stack, a_min=0, a_max=None)
+    return stack
 
 def compute_local_mean_single_channel(image, kernel_size=5):
     image = image.astype(np.float64)
@@ -131,7 +133,21 @@ def average_y_per_x_binned(paired_array, num_bins=100, threshold=0):
 #     return brightness_to_variance_r
 #
 
-
+def _process_std_difference_pair(pair, channel):
+    diffused_path, clear_path = pair
+    try:
+        clear, diffused = align_and_crop_raw_images(clear_path, diffused_path)
+    except Exception as e:
+        print(f"Error processing pair {pair}: {e}")
+        return np.zeros((0, 2))
+    clear_ch = clear['mosaic']
+    diff_ch = diffused['mosaic']
+    clear_std = np.sqrt(compute_local_variance(clear_ch))
+    diff_std = np.sqrt(compute_local_variance(diff_ch))
+    return create_array_per_pair(
+        clear_ch[:, :, channel],
+        diff_std[:, :, channel] - clear_std[:, :, channel]
+    )
 def _process_variance_difference_pair(pair, channel):
     diffused_path, clear_path = pair
     try:
@@ -150,6 +166,21 @@ def _process_variance_difference_pair(pair, channel):
 from itertools import repeat
 
 
+def get_brightness_to_std_difference(num_workers=None, channel=0):
+    """
+    Parallel version of get_brightness_to_std_difference.
+    Set num_workers to control number of processes (default: CPU count).
+    """
+    paths_dict = get_image_paths()
+    pairs = list(zip(paths_dict['filter_long_exp'], paths_dict['long_exp']))
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        # executor.map yields results in order; wrap for progress bar
+        results = list(tqdm(
+            executor.map(_process_std_difference_pair, pairs, repeat(channel)),
+            total=len(pairs)
+        ))
+    # Stack all arrays into a single (N,2) array
+    return np.vstack(results)
 def get_brightness_to_variance_difference(num_workers=None, channel=0):
     """
     Parallel version of get_brightness_to_variance_difference.
@@ -196,7 +227,7 @@ from scipy.ndimage import median_filter
 def fit_spline(avg_y_per_x_r, smoothing_factor=2e-3):
     spl = UnivariateSpline(avg_y_per_x_r[:,0], avg_y_per_x_r[:,1], s=smoothing_factor, k=5)
     return spl
-def get_brightness_to_std_difference_splines():
+def get_brightness_to_std_difference_splines_wrong():
     # Load the different channels from a file
     var_diff_per_brightness_r = np.load("avg_variance_difference_per_brightness_channel_0.npy")
     var_diff_per_brightness_g1 = np.load("avg_variance_difference_per_brightness_channel_1.npy")
@@ -216,6 +247,32 @@ def get_brightness_to_std_difference_splines():
     std_diff_smoothed_g1 = process_channel(var_diff_per_brightness_g1)
     std_diff_smoothed_b = process_channel(var_diff_per_brightness_b)
     std_diff_smoothed_g2 = process_channel(var_diff_per_brightness_g2)
+    # Fit splines to the smoothed data
+    spl_r = fit_spline(std_diff_smoothed_r)
+    spl_g1 = fit_spline(std_diff_smoothed_g1)
+    spl_b = fit_spline(std_diff_smoothed_b)
+    spl_g2 = fit_spline(std_diff_smoothed_g2)
+    # Return the splines
+    return spl_r, spl_g1, spl_b, spl_g2
+
+def get_brightness_to_std_difference_splines():
+    # Load the different channels from a file
+    std_diff_per_brightness_r = np.load("std_diff_per_brightness_channel_0.npy")
+    std_diff_per_brightness_g1 = np.load("std_diff_per_brightness_channel_1.npy")
+    std_diff_per_brightness_b = np.load("std_diff_per_brightness_channel_2.npy")
+    std_diff_per_brightness_g2 = np.load("std_diff_per_brightness_channel_3.npy")
+
+    def process_channel(channel):
+        # Median filter the data
+        window_size = 200
+        channel[:, 1] = median_filter(channel[:, 1], size=window_size)
+        return channel
+
+    # Process each channel
+    std_diff_smoothed_r = process_channel(std_diff_per_brightness_r)
+    std_diff_smoothed_g1 = process_channel(std_diff_per_brightness_g1)
+    std_diff_smoothed_b = process_channel(std_diff_per_brightness_b)
+    std_diff_smoothed_g2 = process_channel(std_diff_per_brightness_g2)
     # Fit splines to the smoothed data
     spl_r = fit_spline(std_diff_smoothed_r)
     spl_g1 = fit_spline(std_diff_smoothed_g1)
