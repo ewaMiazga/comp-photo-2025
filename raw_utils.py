@@ -79,3 +79,13 @@ def demosaic_bilinear(raw):
 
     return rgb_image
 
+def demosaic_vanilla(mosaic):
+    R = mosaic[0::2, 0::2]
+    G = (mosaic[0::2, 1::2] + mosaic[1::2, 0::2]) / 2 # Take the average of green_bottom and green_top
+    B = mosaic[1::2, 1::2] #
+    rgb_image = np.dstack((R,G,B)) # Stack R, G, B into a 3 channel image
+
+    print("Image size after demosaic_vanilla: ", rgb_image.shape)
+    
+
+    return rgb_image
