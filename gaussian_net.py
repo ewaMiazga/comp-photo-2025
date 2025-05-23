@@ -100,22 +100,21 @@ class GaussianNet(nn.Module):
         
 
     def forward(self, img):
-        e1 = self.enc1(img)
-        e2 = self.enc2(F.relu(e1))
-        e3 = self.enc3(F.relu(e2))
-        x_encoded = self.enc4(F.relu(e3))
-        x_encoded = F.relu(x_encoded)
+        e1 = F.relu(self.enc1(img))
+        e2 = F.relu(self.enc2(e1))
+        e3 = F.relu(self.enc3(e2))
+        x_encoded = F.relu(self.enc4(e3))
 
         sigma = self.encoder_sigma(img) + 1e-3
 
         kernels = gaussian_kernel(sigma, self.k_size)
         diffused = adaptive_gaussian_conv2d(x_encoded, kernels, self.k_size)
 
-        x = self.dec1(F.relu(diffused))
-        x = self.dec2(F.relu(x + e3))
-        x = self.dec3(F.relu(x + e2))
-        x = self.dec4(F.relu(x + e1))
-        out = F.relu(x) + img
+        x = F.relu(self.dec1(diffused))
+        x = F.relu(self.dec2(x + e3))
+        x = F.relu(self.dec3(x + e2))
+        x = F.relu(self.dec4(x + e1))
+        out = x + img
         return out
 
 

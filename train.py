@@ -16,6 +16,7 @@ def l1_loss(network_output, gt):
 def main():
     parser = argparse.ArgumentParser(description="Trains the Gaussian net")
     parser.add_argument("--epochs", type=int, help="Number of epochs")
+    parser.add_argument("--ksize", type=int, help="Size of the kernel")
     args = parser.parse_args()
 
     device = "cuda"
@@ -34,7 +35,7 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
     torch.cuda.empty_cache()
-    net = GaussianNet(k_size=17).to(device)
+    net = GaussianNet(k_size=args.ksize).to(device)
 
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
@@ -58,6 +59,10 @@ def main():
             scheduler.step()
             epoch_losses.append(loss.item())
 
+        if (epoch + 1) % 10 == 0:
+            model_weights_checkpoint_path = "net_chkpt.pth"
+            torch.save(net.state_dict(), model_weights_checkpoint_path)
+
         losses.append(np.mean(epoch_losses))
         print(f"Epoch {epoch}, Loss: {losses[-1]}")
 
@@ -66,16 +71,16 @@ def main():
     torch.save(net.state_dict(), model_weights_path)
     print(f"Saved model weights at {model_weights_path}")
 
-    l1 = 0.0
-    for original_img, filter_img in test_loader:
-        original_img = original_img.to(device)
-        filter_img = filter_img.to(device)     
-        blurred_img = net(original_img)
-        l1 += l1_loss(filter_img, blurred_img) * original_img.shape[0]
-    
-    l1 /= len(test_dataset)
-
-    print(f"Mean test L1: {l1}")
+    #l1 = 0.0
+    #for original_img, filter_img in test_loader:
+    #    original_img = original_img.to(device)
+    #    filter_img = filter_img.to(device)     
+    #    blurred_img = net(original_img)
+    #    l1 += l1_loss(filter_img, blurred_img) * original_img.shape[0]
+    #
+    #l1 /= len(test_dataset)
+#
+    #print(f"Mean test L1: {l1}")
 
 if __name__ == "__main__":
     main()
