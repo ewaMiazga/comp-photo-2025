@@ -48,7 +48,7 @@ def apply_transform(img1, img2, H):
     aligned_img = cv2.warpPerspective(img2, H, (img1.shape[1], img1.shape[0]))
     return aligned_img
 
-def _align_and_crop_raw_images(path1, path2):
+def _align_and_crop_raw_images(path1, path2, downscale_factor=1):
     raw1 = rawpy.imread(path1).raw_image_visible
     raw2 = rawpy.imread(path2).raw_image_visible
 
@@ -72,6 +72,11 @@ def _align_and_crop_raw_images(path1, path2):
 
     cropped_aligned, cropped_original = crop_zero_sides(image1=aligned_channels, image2=packed1)
 
+    # Downscale the images if needed
+    if downscale_factor > 1:
+        cropped_aligned = cv2.resize(cropped_aligned, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor)
+        cropped_original = cv2.resize(cropped_original, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor)
+
     unpacked_aligned = unpack_raw(cropped_aligned)
     unpacked_original = unpack_raw(cropped_original)
 
@@ -80,15 +85,15 @@ def _align_and_crop_raw_images(path1, path2):
 
     return result_original, result_aligned
 
-def align_and_crop_raw_images(path1, path2, path3=None):
+def align_and_crop_raw_images(path1, path2, path3=None, downscale_factor=1):
     # Run first alignment
-    result_pair_1 = _align_and_crop_raw_images(path1, path2)
+    result_pair_1 = _align_and_crop_raw_images(path1, path2, downscale_factor)
 
     if path3 is None:
         return result_pair_1
 
     # Run second alignment
-    result_pair_2 = _align_and_crop_raw_images(path1, path3)
+    result_pair_2 = _align_and_crop_raw_images(path1, path3, downscale_factor)
 
     # Return None if any of the results are None
     if result_pair_1 is None or result_pair_2 is None:

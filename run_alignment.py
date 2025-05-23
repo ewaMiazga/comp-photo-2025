@@ -11,13 +11,15 @@ def main():
     Use examples:
         python run_alignment.py --original dataset_raw/long_exp --filtered dataset_raw/filter_long_exp
         python run_alignment.py --original dataset_raw/long_exp --filtered dataset_raw/filter_long_exp --short_exp dataset_raw/short_exp
+        python run_alignment.py --original dataset_raw/long_exp --n_photos 10 --downscale 2
     """
     parser = argparse.ArgumentParser(description="Runs alignment on photos from 2 or 3 folders and saves aligned photos as torch tensors")
     parser.add_argument("--original", type=str, help="Path to folder with original photos")
     parser.add_argument("--filtered", type=str, help="Path to folder with filtered photos")
     # Optional argument for low exposure images
     parser.add_argument("--short_exp", type=str, default=None, help="Path to folder with low exposure photos")
-    parser.add_argument("--n_photos", type=str, default=None, help="Number of photos to process")
+    parser.add_argument("--n_photos", type=int, default=None, help="Number of photos to process")
+    parser.add_argument("--downscale", type=int, default=1, help="Downscale factor for the images")
 
     args = parser.parse_args()
 
@@ -38,6 +40,7 @@ def main():
             for fn, filtered_fn in zip(original_fns, filtered_fns)
         ]
 
+
     original_mosaics = []
     filtered_mosaics = []
     short_exp_mosaics = []
@@ -46,7 +49,7 @@ def main():
         if len(file_paths_tuples) > n_photos:
             file_paths_tuples = file_paths_tuples[:n_photos]
     for file_paths_tuple in tqdm(file_paths_tuples, desc="Aligning photos", unit="photo", dynamic_ncols=True):
-        result = align_and_crop_raw_images(*file_paths_tuple)
+        result = align_and_crop_raw_images(*file_paths_tuple, downscale_factor=args.downscale)
         if result is None:
             continue
         if short_exp_fns:
