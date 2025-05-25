@@ -74,11 +74,17 @@ def _align_and_crop_raw_images(path1, path2, downscale_factor=1):
 
     # Downscale the images if needed
     if downscale_factor > 1:
-        cropped_aligned = cv2.resize(cropped_aligned, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor)
-        cropped_original = cv2.resize(cropped_original, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor)
+        cropped_aligned = cv2.resize(cropped_aligned, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor, interpolation=cv2.INTER_NEAREST)
+        cropped_original = cv2.resize(cropped_original, (0, 0), fx=1/downscale_factor, fy=1/downscale_factor, interpolation=cv2.INTER_NEAREST)
+
+
+    # Normalize again after resizing and aligning
+    cropped_aligned = (cropped_aligned - cropped_aligned.min()) / (cropped_aligned.max() - cropped_aligned.min())
+    cropped_original = (cropped_original - cropped_original.min()) / (cropped_original.max() - cropped_original.min())
 
     unpacked_aligned = unpack_raw(cropped_aligned)
     unpacked_original = unpack_raw(cropped_original)
+
 
     result_aligned = {"raw": unpacked_aligned, "mosaic": cropped_aligned, "rgb": demosaic_bilinear(unpacked_aligned)}
     result_original = {"raw": unpacked_original, "mosaic": cropped_original,  "rgb": demosaic_bilinear(unpacked_original)}
