@@ -1,7 +1,5 @@
 # Emulating the Effect of Highlight Diffusion Filter
 
-Project as part of the EPFL Computational Photography course (CS-413).
-
 ## Overview
 
 This repository contains code and notebooks for emulating highlight diffusion filters on paired RAW images, using both physics-based kernels and deep learning models.
@@ -42,23 +40,64 @@ python run_alignment.py \
   --short_exp data/dataset_raw/short_exp \              #optional
 ```
 
+## Physical based approach
+
+In the `physical_based` folder, you will find our different analysis and approaches to emulate the effect of a diffusion filter with traditional methods.
+
+Namely, we explore the per-pixel brightness variance, an **adaptive Gaussian blur** with a pluggable function for sigma, and more importantly, we find a quite effective **overexposure extention blur method**.
 
 
+## Deep learning  approach
+In the `deep_learning_based` folder, you will find our method to emulate the effect of a diffusion filter using deep learning.
+
+To run the training with N epochs, do:
+```bash
+python train.py --epochs N
+```
+
+## Additional analysis notebooks
+- `alignment_quantification.ipynb`: this notebook contains analysis of the effectiveness of our alignment pipeline.
+- `dataset_visualization.ipynb`: this notebook is useful to get an overall view of the dataset
 
 
+## Structure of the repo
+```
+├── analysis_notebooks/
+│   ├── alignment_quantification.ipynb
+│   └── dataset_visualization.ipynb
+├── deep_learning_based/
+│   ├── direct-gaussian-optimization.ipynb
+│   ├── extension_blur_net.py
+│   ├── gaussian_net.py
+│   ├── test.ipynb
+│   ├── train_extension_blur_net.py
+│   └── train.py
+│   
+├── physical_based/
+│   ├── stats-analysis/
+│   ├── blur_kernel_analysis.ipynb
+│   ├── gaussian_adaptive_blur.ipynb
+│   ├── gaussian_kernel.ipynb
+│   ├── overexposure_extention_blur.ipynb
+│   ├── variance_brightness_analysis.ipynb
+│   └── variance_brightness_analysis.py
+├── utils/
+│   ├── alignment.py
+│   ├── dataset_navigation.py
+│   ├── post_processor.py
+│   └── raw_utils.py
+├── .gitignore
+├── LICENSE
+├── README.md
+└── run_alignment.py
+```
 
+## Authors
+- Nour Guermazi ([@nourguermazi01](https://github.com/nourguermazi01))  
+- Ewa Miazga ([@ewaMiazga](https://github.com/ewaMiazga))  
+- Gunnar Dofri Vidarsson ([@GDofri](https://github.com/GDofri))  
+- Boris Zhestiankin ([@zhestyatsky](https://github.com/zhestyatsky))  
 
-
-
-
-
-
-
-
-
-
-- `run_alignment.py`: Entry point for RANSAC-based feature matching and homography estimation.
-- `alignment.py`: Contains adjustable parameters for feature detection, matching thresholds, and warping.
-
-
+Supervised by: [Liying Lu](https://people.epfl.ch/liying.lu) 
+As part of CS-413: Computational Photography at EPFL, taught by [Sabine Süsstrunk](https://people.epfl.ch/sabine.susstrunk) ([IVRL](https://www.epfl.ch/labs/ivrl/))
 
