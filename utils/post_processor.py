@@ -1,4 +1,4 @@
-from raw_utils import unpack_raw, demosaic_bilinear
+from utils.raw_utils import unpack_raw, demosaic_bilinear
 import numpy as np
 class PostProcessor:
     def __init__(self, gray_world_constants, gamma=2.2):
