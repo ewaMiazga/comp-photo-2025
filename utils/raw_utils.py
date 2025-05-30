@@ -2,7 +2,7 @@ import numpy as np
 from scipy.ndimage.filters import convolve
 
 
-def pack_raw(raw, black_level: int = 512, white_level: int = 16383, normalize: bool = False):
+def pack_raw(raw, black_level, white_level, normalize: bool = False):
     """Packs Bayer image to 4 channels"""
     img = np.expand_dims(raw, axis=2)
     out = np.concatenate((img[0::2, 0::2], # R
@@ -12,8 +12,8 @@ def pack_raw(raw, black_level: int = 512, white_level: int = 16383, normalize: b
                           ), axis=2)
 
     if normalize:
-        black_level = out.min()
-        white_level = out.max()
+        #black_level = out.min()
+        #white_level = out.max()
 
         out = (out - black_level) / (white_level - black_level)
         
