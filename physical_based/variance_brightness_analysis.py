@@ -1,9 +1,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from raw_utils import *
-from alignment import *
+from utils.raw_utils import *
+from utils.alignment import *
 import rawpy
-from dataset_navigation import get_image_paths
+from utils.dataset_navigation import get_image_paths
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor
 import matplotlib

@@ -122,7 +122,7 @@ import argparse
 import numpy as np
 import torch
 from tqdm import tqdm
-from alignment import align_and_crop_raw_images
+from utils.alignment import align_and_crop_raw_images
 from concurrent.futures import ProcessPoolExecutor
 
 

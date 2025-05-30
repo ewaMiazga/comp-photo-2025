@@ -47,23 +47,5 @@ def get_image_paths(dataset_name:str ='dataset_raw', types=None):
     return image_file_paths_per_type
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if __name__=='__main__':
     print(get_image_paths())
