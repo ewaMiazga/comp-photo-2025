@@ -231,8 +231,8 @@ def main():
     # Construct save destinations
     split_orig = args.original.rstrip("/").split("/")
     split_filt = args.filtered.rstrip("/").split("/")
-    base_orig = "/".join(split_orig[:-1]) + "/" + split_orig[-1]
-    base_filt = "/".join(split_filt[:-1]) + "/" + split_filt[-1]
+    base_orig = "/".join(split_orig[:-1]) + "/" + split_orig[-1] + "_start" + str(args.start_index)
+    base_filt = "/".join(split_filt[:-1]) + "/" + split_filt[-1] + "_start" + str(args.start_index)
 
     # Save tensors in chunks
     save_in_chunks(original_mosaics, base_orig, args.save_chunks)
@@ -243,7 +243,7 @@ def main():
 
     if args.short_exp:
         split_short = args.short_exp.rstrip("/").split("/")
-        base_short = "/".join(split_short[:-1]) + "/" + split_short[-1]
+        base_short = "/".join(split_short[:-1]) + "/" + split_short[-1] + "_start" + str(args.start_index)
         save_in_chunks(short_exp_mosaics, base_short, args.save_chunks)
         del short_exp_mosaics
 

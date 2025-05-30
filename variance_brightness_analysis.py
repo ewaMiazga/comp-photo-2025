@@ -166,13 +166,15 @@ def _process_variance_difference_pair(pair, channel):
 from itertools import repeat
 
 
-def get_brightness_to_std_difference(num_workers=None, channel=0):
+def get_brightness_to_std_difference(num_workers=None, channel=0, num_pairs=None):
     """
     Parallel version of get_brightness_to_std_difference.
     Set num_workers to control number of processes (default: CPU count).
     """
     paths_dict = get_image_paths()
-    pairs = list(zip(paths_dict['filter_long_exp'], paths_dict['long_exp']))
+    n = len(paths_dict['filter_long_exp']) if num_pairs is None else num_pairs
+
+    pairs = list(zip(paths_dict['filter_long_exp'], paths_dict['long_exp']))[:n]
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
         # executor.map yields results in order; wrap for progress bar
         results = list(tqdm(
