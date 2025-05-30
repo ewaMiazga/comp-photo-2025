@@ -25,8 +25,8 @@ def main():
 
     batch_size = args.batch_size
     print("Loading data")
-    orig_imgs = torch.load('dataset_raw/long_exp.pt', weights_only=True) # (C, H, W, N)
-    filter_imgs = torch.load('dataset_raw/filter_long_exp.pt', weights_only=True) # (C, H, W, N)
+    orig_imgs = torch.load('../dataset_raw/long_exp.pt', weights_only=True) # (C, H, W, N)
+    filter_imgs = torch.load('../dataset_raw/filter_long_exp.pt', weights_only=True) # (C, H, W, N)
 
     print("Loaded data")
     dataset = ImagePairDataset(orig_imgs.permute(3, 0, 1, 2), filter_imgs.permute(3, 0, 1, 2), N=5)

@@ -22,8 +22,8 @@ def main():
     set_seed(42)
 
     print("Loading data")
-    orig_imgs = torch.load('dataset_raw/long_exp.pt', weights_only=True)
-    filter_imgs = torch.load('dataset_raw/filter_long_exp.pt', weights_only=True)
+    orig_imgs = torch.load('../dataset_raw/long_exp.pt', weights_only=True)
+    filter_imgs = torch.load('../dataset_raw/filter_long_exp.pt', weights_only=True)
 
     print("Loaded data")
 
