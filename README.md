@@ -52,7 +52,7 @@ In the `deep_learning_based` folder, you will find our method to emulate the eff
 
 To run the training with N epochs, do:
 ```bash
-python train.py --epochs N
+python deep_learning_based/train.py --epochs N
 ```
 
 ## Additional analysis notebooks
