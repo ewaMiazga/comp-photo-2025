@@ -5,7 +5,7 @@ import numpy as np
 import rawpy
 import matplotlib.pyplot as plt
 import os
-from raw_utils import *
+from utils.raw_utils import *
 
 
 def get_image_alignment_transform(img1, img2, method="orb", nfeatures=5000, ransac_thresh=5.0, return_ratio=False):

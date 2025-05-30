@@ -26,14 +26,13 @@ def elements_not_in_all(sets: list[set]) -> set:
 #
 #     return file_paths
 
-def get_image_paths(dataset_name:str ='dataset_raw', types=None):
+def get_image_paths(dataset_name:str ='../dataset_raw', types=None):
     if types is None:
         types = ['filter_long_exp', 'long_exp', 'short_exp']
-
     # Get the list of image file names in each subfolder
     image_file_paths_per_type = {}
     for idx, subfolder in enumerate(types):
-        image_dir_path = path.join('.', dataset_name, subfolder)
+        image_dir_path = path.join(dataset_name, subfolder)
         image_file_paths = [path.join(image_dir_path, f) for f in sorted(listdir(image_dir_path)) if path.isfile(path.join(image_dir_path, f)) and f[0] != '.']
         image_file_paths_per_type[subfolder] = image_file_paths
 
